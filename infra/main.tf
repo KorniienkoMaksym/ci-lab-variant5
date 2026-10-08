@@ -16,7 +16,7 @@ resource "docker_container" "app" {
   name     = "ci-lab-deploy"
   image    = docker_image.app.image_id
   command  = ["pytest", "-v"]
-  rm       = true
+  rm       = false
   must_run = false
 }
 
