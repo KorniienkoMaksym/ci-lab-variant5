@@ -14,3 +14,9 @@
 ```bash
 docker pull ghcr.io/<ваш-логін>/ci-lab-app:latest
 docker run --rm ghcr.io/<ваш-логін>/ci-lab-app:latest
+
+## CI/CD-конвеєр 
+Source -> Build -> Test -> Package -> Deploy 
+При кожному push у гілку main автоматично: встановлюються залежності, 
+запускаються тести, збирається й публікується Docker-образ у GHCR, 
+після чого Terraform розгортає цей образ і перевіряє результат. 
