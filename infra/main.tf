@@ -19,3 +19,8 @@ resource "docker_container" "app" {
   rm       = true
   must_run = false
 }
+
+output "container_id" {
+  value       = docker_container.app.id
+  description = "Ідентифікатор запущеного контейнера"
+}
