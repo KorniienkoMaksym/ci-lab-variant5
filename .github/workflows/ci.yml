@@ -52,3 +52,44 @@ jobs:
           docker push $IMAGE:latest
           docker tag $IMAGE:latest $IMAGE:v1.0.0
           docker push $IMAGE:v1.0.0
+
+deploy:
+    needs: build-and-push-image
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - name: Отримати код репозиторію
+        uses: actions/checkout@v4
+      - name: Встановити Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.9.*"
+      - name: Увійти в GitHub Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u ${{ github.actor }} --password-stdin
+      - name: terraform init
+        working-directory: infra
+        run: terraform init
+      - name: terraform apply
+        working-directory: infra
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}"
+          IMAGE="$IMAGE/ci-lab-app:${{ github.sha }}"
+          terraform apply -auto-approve -var="image_name=$IMAGE"
+      - name: Перевірити результат розгортання (smoke-test)
+        run: |
+          docker logs ci-lab-deploy
+          EXIT_CODE=$(docker inspect ci-lab-deploy --format='{{.State.ExitCode}}')
+          echo "Код завершення контейнера: $EXIT_CODE"
+          test "$EXIT_CODE" -eq 0
+      - name: terraform destroy
+        if: always()
+        working-directory: infra
+        run: |
+          IMAGE="ghcr.io/${{ github.repository_owner }}"
+          IMAGE="$IMAGE/ci-lab-app:${{ github.sha }}"
+          terraform destroy -auto-approve -var="image_name=$IMAGE"
