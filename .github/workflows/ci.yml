@@ -71,6 +71,9 @@ jobs:
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
             -u ${{ github.actor }} --password-stdin
+      - name: Перевірка форматування Terraform
+        working-directory: infra
+        run: terraform fmt -check
       - name: terraform init
         working-directory: infra
         run: terraform init
