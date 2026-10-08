@@ -20,4 +20,4 @@ def factorial(n):
 
 def is_even(n):
     """Перевірка парного числа."""
-    return n % 2 == 1
+    return n % 2 == 0
