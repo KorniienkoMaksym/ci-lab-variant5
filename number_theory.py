@@ -7,6 +7,7 @@ def is_prime(n):
             return False
     return True
 
+
 def factorial(n):
     """Обчислення факторіала."""
     if n < 0:
@@ -17,6 +18,7 @@ def factorial(n):
     for i in range(2, n + 1):
         result *= i
     return result
+
 
 def is_even(n):
     """Перевірка парного числа."""
