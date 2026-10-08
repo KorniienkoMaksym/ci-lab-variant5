@@ -50,3 +50,5 @@ jobs:
           IMAGE=ghcr.io/korniienkomaksym/ci-lab-app
           docker push $IMAGE:${{ github.sha }}
           docker push $IMAGE:latest
+          docker tag $IMAGE:latest $IMAGE:v1.0.0
+          docker push $IMAGE:v1.0.0
