@@ -1,0 +1,5 @@
+services:
+  app:
+    build: .
+    image: ci-lab-app:local
+    command: ["pytest", "-v"]
