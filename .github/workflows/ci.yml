@@ -77,7 +77,7 @@ jobs:
       - name: terraform apply
         working-directory: infra
         run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}"
+          IMAGE="ghcr.io/korniienkomaksym"
           IMAGE="$IMAGE/ci-lab-app:${{ github.sha }}"
           terraform apply -auto-approve -var="image_name=$IMAGE"
       - name: Перевірити результат розгортання (smoke-test)
@@ -90,7 +90,7 @@ jobs:
         if: always()
         working-directory: infra
         run: |
-          IMAGE="ghcr.io/${{ github.repository_owner }}"
+          IMAGE="ghcr.io/korniienkomaksym"
           IMAGE="$IMAGE/ci-lab-app:${{ github.sha }}"
           terraform destroy -auto-approve -var="image_name=$IMAGE"
           
