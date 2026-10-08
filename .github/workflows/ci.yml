@@ -1,4 +1,9 @@
 name: CI
+
+permissions:
+  contents: read
+  packages: write
+
 on:
   push:
     branches: [ "main" ]
@@ -28,3 +33,27 @@ jobs:
         flake8 .
     - name: Запустити тести
       run: pytest -v
+
+build-and-push-image:
+    needs: build-and-test
+    if: github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Отримати код репозиторію
+        uses: actions/checkout@v4
+      - name: Увійти в GitHub Container Registry
+        run: |
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
+            -u ${{ github.actor }} --password-stdin
+      - name: Зібрати Docker-образ (крок "Package")
+        run: |
+          IMAGE=ghcr.io/korniienkomaksym/ci-lab-app
+          docker build -t $IMAGE:${{ github.sha }} -t $IMAGE:latest .
+      - name: Завантажити образ у реєстр
+        run: |
+          IMAGE=ghcr.io/korniienkomaksym/ci-lab-app
+          docker push $IMAGE:${{ github.sha }}
+          docker push $IMAGE:latest
