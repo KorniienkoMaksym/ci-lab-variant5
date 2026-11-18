@@ -200,7 +200,8 @@
         "y": 260,
         "wires": [
             [
-                "dbg_db_err_v3"
+                "dbg_db_err_v3",
+                "468b55d1e9b1f65a"
             ]
         ]
     },
@@ -273,6 +274,55 @@
         "wires": []
     },
     {
+        "id": "6297f6e91c49cc09",
+        "type": "inject",
+        "z": "tab_pr5_v3",
+        "name": "",
+        "props": [
+            {
+                "p": "payload"
+            },
+            {
+                "p": "topic",
+                "vt": "str"
+            }
+        ],
+        "repeat": "1",
+        "crontab": "",
+        "once": false,
+        "onceDelay": 0.1,
+        "topic": "",
+        "payload": "",
+        "payloadType": "date",
+        "x": 790,
+        "y": 380,
+        "wires": [
+            [
+                "468b55d1e9b1f65a"
+            ]
+        ]
+    },
+    {
+        "id": "468b55d1e9b1f65a",
+        "type": "function",
+        "z": "tab_pr5_v3",
+        "name": "Буфер (Store-and-Forward)",
+        "func": "let queue = flow.get(\"pg_buffer\") || [];\n\n// 1. Якщо прийшла помилка від вузла catch (БД недоступна) — зберігаємо запис у буфер\nif (msg.error) {\n    if (Array.isArray(msg.params)) {\n        queue.push({ params: msg.params });\n        flow.set(\"pg_buffer\", queue);\n        node.status({ fill: \"yellow\", shape: \"ring\", text: `в буфері: ${queue.length}` });\n    }\n    return null;\n}\n\n// 2. Якщо спрацював таймер (inject) і в буфері є записи — відправляємо найстаріший в БД\nif (queue.length > 0) {\n    const item = queue.shift();\n    flow.set(\"pg_buffer\", queue);\n    node.status({ fill: \"blue\", shape: \"dot\", text: `відправка... залишилось: ${queue.length}` });\n    return { params: item.params };\n}\n\nnode.status({ fill: \"green\", shape: \"dot\", text: \"буфер порожній\" });\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1120,
+        "y": 380,
+        "wires": [
+            [
+                "pg_insert_drains"
+            ]
+        ]
+    },
+    {
         "id": "mqtt_broker_pr5",
         "type": "mqtt-broker",
         "name": "Mosquitto",
@@ -326,7 +376,7 @@
         "passwordEnv": ""
     },
     {
-        "id": "966871a722dedd69",
+        "id": "f145e860d6757911",
         "type": "global-config",
         "env": [],
         "modules": {
