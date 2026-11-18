@@ -1,0 +1,7 @@
+# Великі вихідні файли не комітимо:
+# їх завантажує скрипт scripts/download_data.py
+data/raw/
+# Віртуальне середовище та службові файли
+.venv/
+__pycache__/
+.ipynb_checkpoints/
