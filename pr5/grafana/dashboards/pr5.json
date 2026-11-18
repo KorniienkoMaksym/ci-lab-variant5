@@ -1,0 +1,209 @@
+{
+  "annotations": { "list": [] },
+  "editable": true,
+  "fiscalYearStartMonth": 0,
+  "graphTooltip": 0,
+  "id": null,
+  "links": [],
+  "panels": [
+    {
+      "datasource": { "type": "postgres", "uid": "pg-pr5" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10 },
+          "unit": "lengthcm"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 0 },
+      "id": 1,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "pg-pr5" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(ts, $__interval),\n       station,\n       avg(h)     AS h,\n       avg(h_ema) AS h_ema\nFROM storm_drains\nWHERE $__timeFilter(ts)\nGROUP BY 1, 2\nORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "Рівень води у колекторах (h та h_ema)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "pg-pr5" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "yellow", "value": 120 },
+              { "color": "red", "value": 150 }
+            ]
+          },
+          "unit": "lengthcm"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 0 },
+      "id": 3,
+      "options": {
+        "colorMode": "background",
+        "graphMode": "none",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "pg-pr5" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT ts AS \"time\", station, h_ema\nFROM storm_drains\nWHERE $__timeFilter(ts)\nORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "Поточний рівень води (h_ema)",
+      "type": "stat"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "pg-pr5" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "palette-classic" },
+          "custom": { "drawStyle": "line", "lineWidth": 2, "fillOpacity": 10 },
+          "unit": "cm/min"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 16, "x": 0, "y": 9 },
+      "id": 2,
+      "options": { "legend": { "displayMode": "list", "placement": "bottom" } },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "pg-pr5" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT $__timeGroupAlias(ts, $__interval),\n       station,\n       avg(v)     AS v,\n       avg(v_ema) AS v_ema\nFROM storm_drains\nWHERE $__timeFilter(ts)\nGROUP BY 1, 2\nORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "Швидкість зміни рівня води (v та v_ema, см/хв)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "pg-pr5" },
+      "fieldConfig": {
+        "defaults": {
+          "color": { "mode": "thresholds" },
+          "max": 100,
+          "min": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "yellow", "value": 80 },
+              { "color": "green", "value": 95 }
+            ]
+          },
+          "unit": "percent"
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 8, "w": 8, "x": 16, "y": 9 },
+      "id": 6,
+      "options": {
+        "displayMode": "gradient",
+        "orientation": "horizontal",
+        "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }
+      },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "pg-pr5" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT max(ts) AS \"time\",\n       station,\n       100.0 * count(*) * 5 / ($__unixEpochTo() - $__unixEpochFrom()) AS completeness\nFROM storm_drains\nWHERE $__timeFilter(ts)\nGROUP BY station\nORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "Повнота потоку, %",
+      "type": "bargauge"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "pg-pr5" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": { "color": "red", "index": 1, "text": "offline" },
+                "1": { "color": "green", "index": 0, "text": "online" }
+              },
+              "type": "value"
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 0, "y": 17 },
+      "id": 4,
+      "options": { "mergeValues": true, "showValue": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "pg-pr5" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "(SELECT DISTINCT ON (station)\n        $__timeFrom()::timestamptz AS \"time\",\n        station,\n        online\n FROM station_status\n WHERE ts < $__timeFrom()\n ORDER BY station, ts DESC)\nUNION ALL\nSELECT ts AS \"time\", station, online\nFROM station_status\nWHERE $__timeFilter(ts)\nORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "Стан станцій (online/offline)",
+      "type": "state-timeline"
+    },
+    {
+      "datasource": { "type": "postgres", "uid": "pg-pr5" },
+      "fieldConfig": {
+        "defaults": {
+          "mappings": [
+            {
+              "options": {
+                "0": { "color": "green", "index": 0, "text": "норма" },
+                "1": { "color": "red", "index": 1, "text": "тривога" }
+              },
+              "type": "value"
+            }
+          ]
+        },
+        "overrides": []
+      },
+      "gridPos": { "h": 6, "w": 12, "x": 12, "y": 17 },
+      "id": 5,
+      "options": { "mergeValues": true, "showValue": "auto" },
+      "targets": [
+        {
+          "datasource": { "type": "postgres", "uid": "pg-pr5" },
+          "editorMode": "code",
+          "format": "time_series",
+          "rawQuery": true,
+          "rawSql": "SELECT ts AS \"time\", station, alarm\nFROM storm_drains\nWHERE $__timeFilter(ts)\nORDER BY 1",
+          "refId": "A"
+        }
+      ],
+      "title": "Тривоги переповнення",
+      "type": "state-timeline"
+    }
+  ],
+  "refresh": "5s",
+  "schemaVersion": 39,
+  "tags": ["pr5", "variant3"],
+  "templating": { "list": [] },
+  "time": { "from": "now-15m", "to": "now" },
+  "title": "ПР5 — моніторинг зливових колекторів (Варіант 3)",
+  "uid": "pr5-variant3-drains"
+}

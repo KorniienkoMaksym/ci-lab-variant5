@@ -1,0 +1,16 @@
+# Джерело даних створюється автоматично під час запуску
+apiVersion: 1
+datasources:
+  - name: PostgreSQL
+    uid: pg-pr5
+    type: postgres
+    url: postgres:5432
+    user: ${GRAFANA_DB_USER}
+    isDefault: true
+    jsonData:
+      database: ${POSTGRES_DB}
+      sslmode: disable
+      postgresVersion: 1600
+      timescaledb: false
+    secureJsonData:
+      password: ${GRAFANA_DB_PASSWORD}

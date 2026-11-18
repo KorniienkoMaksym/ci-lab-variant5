@@ -1,0 +1,70 @@
+# ПР5. IoT-конвеєр: MQTT → Node-RED → PostgreSQL → Grafana
+name: pr5-iot
+
+services:
+  mosquitto:                       # MQTT-брокер
+    image: eclipse-mosquitto:2.0.22
+    ports:
+      - "1883:1883"
+    volumes:
+      - ./mosquitto/config:/mosquitto/config:ro
+      - mosquitto-data:/mosquitto/data
+    restart: unless-stopped
+
+  postgres:                        # база даних
+    image: postgres:16
+    ports:
+      - "5433:5432"                # 5433 на ноутбуці
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
+    volumes:
+      - ./postgres/init:/docker-entrypoint-initdb.d:ro
+      - postgres-data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  nodered:                         # обробка потоку
+    build: ./nodered               # див. nodered/Dockerfile
+    image: pr5-nodered:4.1
+    ports:
+      - "1880:1880"
+    environment:
+      TZ: Europe/Kyiv
+      PGHOST: postgres
+      PGPORT: "5432"
+      PGDATABASE: ${POSTGRES_DB}
+      PGUSER: ${POSTGRES_USER}
+      PGPASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+      - nodered-data:/data
+    depends_on:
+      - mosquitto
+      - postgres
+    restart: unless-stopped
+
+  grafana:                         # візуалізація
+    image: grafana/grafana:12.4
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_USER}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB}
+      GRAFANA_DB_USER: ${GRAFANA_DB_USER}
+      GRAFANA_DB_PASSWORD: ${GRAFANA_DB_PASSWORD}
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/etc/grafana/dashboards:ro
+      - grafana-data:/var/lib/grafana
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+volumes:
+  mosquitto-data:
+  postgres-data:
+  nodered-data:
+  grafana-data:

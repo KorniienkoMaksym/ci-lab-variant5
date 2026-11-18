@@ -1,0 +1,336 @@
+[
+    {
+        "id": "tab_pr5_v3",
+        "type": "tab",
+        "label": "ПР5 (Варіант 3) — зливові колектори",
+        "disabled": false,
+        "info": ""
+    },
+    {
+        "id": "mqtt_in_telemetry",
+        "type": "mqtt in",
+        "z": "tab_pr5_v3",
+        "name": "Телеметрія колекторів",
+        "topic": "kharkiv/drains/+/telemetry",
+        "qos": "1",
+        "datatype": "json",
+        "broker": "mqtt_broker_pr5",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 140,
+        "y": 100,
+        "wires": [
+            [
+                "fn_validate_v3",
+                "dbg_raw_v3"
+            ]
+        ]
+    },
+    {
+        "id": "fn_validate_v3",
+        "type": "function",
+        "z": "tab_pr5_v3",
+        "name": "Перевірка даних (h: 0..300)",
+        "func": "const station = msg.topic.split(\"/\")[2];\nconst d = msg.payload;\n\nconst ok = (v, lo, hi) => typeof v === \"number\" && !Number.isNaN(v) && v >= lo && v <= hi;\nconst errors = [];\n\nif (!ok(d.h, 0, 300)) errors.push(\"h\");\nif (!Number.isInteger(d.ts)) errors.push(\"ts\");\n\nif (errors.length > 0) {\n    const n = (context.get(\"rejected\") || 0) + 1;\n    context.set(\"rejected\", n);\n    node.status({ fill: \"red\", shape: \"dot\", text: `відхилено: ${n}` });\n    msg.payload = { station, errors, raw: d };\n    return [null, msg];\n}\n\nmsg.station = station;\nmsg.ts = d.ts;\nmsg.payload = { h: d.h };\nreturn [msg, null];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 390,
+        "y": 100,
+        "wires": [
+            [
+                "fn_calc_v3"
+            ],
+            [
+                "dbg_rejected_v3"
+            ]
+        ]
+    },
+    {
+        "id": "fn_calc_v3",
+        "type": "function",
+        "z": "tab_pr5_v3",
+        "name": "Швидкість v, EMA і тривога",
+        "func": "const ALPHA_H = 0.3;\nconst ALPHA_V = 0.25;\nconst ON = 150.0;\nconst OFF = 120.0;\n\nconst key = \"st_\" + msg.station;\nconst st = context.get(key) || {\n    prev_h: null,\n    prev_ts: null,\n    h_ema: null,\n    v_ema: null,\n    alarm: 0\n};\n\nconst h = msg.payload.h;\nconst ts = msg.ts;\n\n// Швидкість зміни рівня v_t = (h_t - h_{t-1}) / dt * 60 (см/хв)\nlet v = 0.0;\nif (st.prev_h !== null && st.prev_ts !== null && ts > st.prev_ts) {\n    const dt_sec = (ts - st.prev_ts) / 1000.0;\n    v = ((h - st.prev_h) / dt_sec) * 60.0;\n}\n\n// Згладжування рівня (EMA) та швидкості (EMA)\nst.h_ema = st.h_ema === null ? h : ALPHA_H * h + (1 - ALPHA_H) * st.h_ema;\nst.v_ema = st.v_ema === null ? v : ALPHA_V * v + (1 - ALPHA_V) * st.v_ema;\n\nst.prev_h = h;\nst.prev_ts = ts;\n\n// Тривога з гістерезисом за згладженим рівнем h_ema\nconst before = st.alarm;\nif (st.alarm === 0 && st.h_ema >= ON) st.alarm = 1;\nif (st.alarm === 1 && st.h_ema <= OFF) st.alarm = 0;\n\ncontext.set(key, st);\n\nmsg.payload.h_ema = Math.round(st.h_ema * 10) / 10;\nmsg.payload.v = Math.round(v * 100) / 100;\nmsg.payload.v_ema = Math.round(st.v_ema * 100) / 100;\nmsg.payload.alarm = st.alarm;\n\nlet alarmMsg = null;\nif (st.alarm !== before) {\n    alarmMsg = {\n        topic: `kharkiv/drains/${msg.station}/alarm`,\n        payload: JSON.stringify({\n            ts: msg.ts,\n            alarm: st.alarm,\n            h_ema: msg.payload.h_ema,\n            v_ema: msg.payload.v_ema\n        })\n    };\n}\n\nreturn [msg, alarmMsg];",
+        "outputs": 2,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 660,
+        "y": 100,
+        "wires": [
+            [
+                "fn_params_v3"
+            ],
+            [
+                "mqtt_out_alarm_v3",
+                "dbg_alarm_v3"
+            ]
+        ]
+    },
+    {
+        "id": "fn_params_v3",
+        "type": "function",
+        "z": "tab_pr5_v3",
+        "name": "Параметри запиту SQL",
+        "func": "const p = msg.payload;\nmsg.params = [\n    msg.ts,\n    msg.station,\n    p.h,\n    p.h_ema,\n    p.v,\n    p.v_ema,\n    p.alarm,\n    Date.now() - msg.ts\n];\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 920,
+        "y": 80,
+        "wires": [
+            [
+                "pg_insert_drains"
+            ]
+        ]
+    },
+    {
+        "id": "pg_insert_drains",
+        "type": "postgresql",
+        "z": "tab_pr5_v3",
+        "name": "PostgreSQL: виміри",
+        "query": "INSERT INTO storm_drains (ts, station, h, h_ema, v, v_ema, alarm, lag_ms)\nVALUES (to_timestamp($1 / 1000.0), $2, $3, $4, $5, $6, $7, $8)\nON CONFLICT (station, ts) DO NOTHING;",
+        "postgreSQLConfig": "pg_config_pr5",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 1160,
+        "y": 80,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "mqtt_out_alarm_v3",
+        "type": "mqtt out",
+        "z": "tab_pr5_v3",
+        "name": "Публікація тривог",
+        "topic": "",
+        "qos": "1",
+        "retain": "true",
+        "respTopic": "",
+        "contentType": "",
+        "userProps": "",
+        "correl": "",
+        "expiry": "",
+        "broker": "mqtt_broker_pr5",
+        "x": 920,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "mqtt_in_status_v3",
+        "type": "mqtt in",
+        "z": "tab_pr5_v3",
+        "name": "Стан станцій",
+        "topic": "kharkiv/drains/+/status",
+        "qos": "1",
+        "datatype": "utf8",
+        "broker": "mqtt_broker_pr5",
+        "nl": false,
+        "rap": true,
+        "rh": 0,
+        "inputs": 0,
+        "x": 130,
+        "y": 260,
+        "wires": [
+            [
+                "fn_status_v3"
+            ]
+        ]
+    },
+    {
+        "id": "fn_status_v3",
+        "type": "function",
+        "z": "tab_pr5_v3",
+        "name": "Стан -> параметри",
+        "func": "const station = msg.topic.split(\"/\")[2];\nconst online = msg.payload === \"online\" ? 1 : 0;\nmsg.params = [station, online];\nreturn msg;",
+        "outputs": 1,
+        "timeout": "",
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 380,
+        "y": 260,
+        "wires": [
+            [
+                "pg_insert_status_v3"
+            ]
+        ]
+    },
+    {
+        "id": "pg_insert_status_v3",
+        "type": "postgresql",
+        "z": "tab_pr5_v3",
+        "name": "PostgreSQL: стан",
+        "query": "INSERT INTO station_status (station, online)\nVALUES ($1, $2);",
+        "postgreSQLConfig": "pg_config_pr5",
+        "split": false,
+        "rowsPerMsg": 1,
+        "outputs": 1,
+        "x": 630,
+        "y": 260,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "catch_db_v3",
+        "type": "catch",
+        "z": "tab_pr5_v3",
+        "name": "Помилки бази даних",
+        "scope": [
+            "pg_insert_drains",
+            "pg_insert_status_v3"
+        ],
+        "uncaught": false,
+        "x": 920,
+        "y": 260,
+        "wires": [
+            [
+                "dbg_db_err_v3"
+            ]
+        ]
+    },
+    {
+        "id": "dbg_raw_v3",
+        "type": "debug",
+        "z": "tab_pr5_v3",
+        "name": "Сирі повідомлення",
+        "active": false,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 380,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "dbg_rejected_v3",
+        "type": "debug",
+        "z": "tab_pr5_v3",
+        "name": "Відхилені",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 620,
+        "y": 160,
+        "wires": []
+    },
+    {
+        "id": "dbg_alarm_v3",
+        "type": "debug",
+        "z": "tab_pr5_v3",
+        "name": "Тривоги",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 900,
+        "y": 210,
+        "wires": []
+    },
+    {
+        "id": "dbg_db_err_v3",
+        "type": "debug",
+        "z": "tab_pr5_v3",
+        "name": "Помилки запису",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "error",
+        "targetType": "msg",
+        "statusVal": "error",
+        "statusType": "auto",
+        "x": 1160,
+        "y": 260,
+        "wires": []
+    },
+    {
+        "id": "mqtt_broker_pr5",
+        "type": "mqtt-broker",
+        "name": "Mosquitto",
+        "broker": "mosquitto",
+        "port": "1883",
+        "clientid": "nodered-pr5",
+        "autoConnect": true,
+        "usetls": false,
+        "protocolVersion": "4",
+        "keepalive": "60",
+        "cleansession": false,
+        "autoUnsubscribe": false,
+        "birthTopic": "",
+        "birthQos": "0",
+        "birthPayload": "",
+        "birthMsg": {},
+        "closeTopic": "",
+        "closeQos": "0",
+        "closePayload": "",
+        "closeMsg": {},
+        "willTopic": "",
+        "willQos": "0",
+        "willPayload": "",
+        "willMsg": {},
+        "userProps": "",
+        "sessionExpiry": ""
+    },
+    {
+        "id": "pg_config_pr5",
+        "type": "postgreSQLConfig",
+        "name": "PostgreSQL city",
+        "host": "PGHOST",
+        "hostFieldType": "env",
+        "port": "PGPORT",
+        "portFieldType": "env",
+        "database": "PGDATABASE",
+        "databaseFieldType": "env",
+        "ssl": "false",
+        "sslFieldType": "bool",
+        "applicationName": "",
+        "applicationNameType": "str",
+        "max": "10",
+        "maxFieldType": "num",
+        "idle": "1000",
+        "idleFieldType": "num",
+        "connectionTimeout": "",
+        "connectionTimeoutFieldType": "num",
+        "userFieldType": "env",
+        "userEnv": "",
+        "passwordFieldType": "env",
+        "passwordEnv": ""
+    },
+    {
+        "id": "966871a722dedd69",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-postgresql": "0.16.2"
+        }
+    }
+]

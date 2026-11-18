@@ -1,0 +1,10 @@
+# Дашборди з папки grafana/dashboards завантажуються
+# автоматично (туди кладемо експортований JSON)
+apiVersion: 1
+providers:
+  - name: pr5
+    folder: ПР5
+    type: file
+    allowUiUpdates: true
+    options:
+      path: /etc/grafana/dashboards
