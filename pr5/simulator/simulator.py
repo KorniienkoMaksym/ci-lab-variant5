@@ -22,7 +22,7 @@ CYCLE = 600           # тривалість циклу сценарію, с (10
 
 # Події сценарію (секунди від початку циклу):
 # Злива на lvl-02 з 2-ї по 4-ту хв: рівень зростає зі швидкістю 3.0 см/хв (0.25 см за 5 с)
-RAIN = ("lvl-02", 120, 240, 3.0)
+RAIN = ("lvl-02", 60, 300, 30.0)
 # Знеструмлення lvl-03 з 6-ї по 8-му хв
 OUTAGE = ("lvl-03", 360, 480)
 
@@ -87,7 +87,7 @@ class Station:
         if rain_rate_cm_min > 0:
             self.surge += rain_rate_cm_min * (INTERVAL / 60.0)
         else:
-            self.surge = max(0.0, self.surge - 1.5 * (INTERVAL / 60.0))
+            self.surge = max(0.0, self.surge - 25.0 * (INTERVAL / 60.0))
 
         h = min(295.0, self.x + self.surge)
 
