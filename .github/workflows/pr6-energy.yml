@@ -1,0 +1,103 @@
+# ПР6. Вимірювання енергоспоживання навантаження в GitHub Actions.
+# Той самий код, що й локально: Eco CI оцінює енергію кожного
+# кроку, CodeCarbon (усередині measure.py) — свою оцінку.
+# Дані НЕ надсилаються на сервери Green Coding (send-data: false).
+name: "ПР6 — енергоспоживання"
+
+on:
+  workflow_dispatch:          # запуск кнопкою Run workflow
+  push:
+    paths:
+      - "pr6/bench/**"
+      - "pr6/measure.py"
+      - ".github/workflows/pr6-energy.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  energy:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: pr6
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: "Eco CI: початок вимірювання"
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with:
+          task: start-measurement
+          send-data: false            # нічого не надсилати
+          co2-calculation-method: constant
+          co2-grid-intensity-constant: 458   # світ, Ember 2025
+          json-output: true
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Встановлення залежностей
+        run: |
+          pip install -r requirements.txt
+          rm -f results/measurements_ci.csv results/ecoci_ci.csv
+      - id: inst
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with: { task: get-measurement, label: install }
+
+      - name: Спосіб вимірювання і перевірка коректності
+        run: |
+          python measure.py check
+          python measure.py verify
+      - id: verify
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with: { task: get-measurement, label: verify }
+
+      - name: Простій
+        run: python measure.py idle --seconds 20 --repeat 2
+      - id: idle
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with: { task: get-measurement, label: idle }
+
+      - name: Базова версія
+        run: python measure.py run baseline --repeat 3
+      - id: base
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with: { task: get-measurement, label: baseline }
+
+      - name: Оптимізована версія
+        run: python measure.py run optimized --repeat 3
+      - id: opt
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with: { task: get-measurement, label: optimized }
+
+      - name: Версія за варіантом
+        run: python measure.py run variant --repeat 3
+      - id: var
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with: { task: get-measurement, label: variant }
+
+      - name: "Eco CI: підсумок"
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with:
+          task: display-results
+          send-data: false
+          display-badge: false   # значок — з їхнього сервера
+          display-unit: J
+
+      - name: Збереження результатів Eco CI
+        if: always()
+        env:
+          ECO_J_INST: ${{ steps.inst.outputs.data-lap-json }}
+          ECO_J_VERIFY: ${{ steps.verify.outputs.data-lap-json }}
+          ECO_J_IDLE: ${{ steps.idle.outputs.data-lap-json }}
+          ECO_J_BASE: ${{ steps.base.outputs.data-lap-json }}
+          ECO_J_OPT: ${{ steps.opt.outputs.data-lap-json }}
+          ECO_J_VAR: ${{ steps.var.outputs.data-lap-json }}
+        run: python ci/collect_ecoci.py
+
+      - uses: actions/upload-artifact@v6
+        if: always()
+        with:
+          name: pr6-results
+          path: pr6/results/

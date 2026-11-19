@@ -16,6 +16,13 @@ jobs:
     steps:
     - name: Отримати код репозиторію
       uses: actions/checkout@v4
+    - name: "Eco CI: початок"
+      uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+      with:
+        task: start-measurement
+        send-data: false
+        co2-calculation-method: constant
+        co2-grid-intensity-constant: 458
     - name: Налаштувати Python
       uses: actions/setup-python@v5
       with:
@@ -26,6 +33,19 @@ jobs:
         pip install -r requirements.txt
     - name: Запустити тести
       run: pytest -v
+    - name: "Eco CI: вимір build-and-test"
+      if: always()
+      uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+      with:
+        task: get-measurement
+        label: build-and-test
+    - name: "Eco CI: підсумок"
+      if: always()
+      uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+      with:
+        task: display-results
+        send-data: false
+        display-badge: false
 
   build-and-push-image:
     needs: build-and-test
@@ -37,6 +57,13 @@ jobs:
     steps:
       - name: Отримати код репозиторію
         uses: actions/checkout@v4
+      - name: "Eco CI: початок"
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with:
+          task: start-measurement
+          send-data: false
+          co2-calculation-method: constant
+          co2-grid-intensity-constant: 458
       - name: Увійти в GitHub Container Registry
         run: |
           echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io \
@@ -52,6 +79,19 @@ jobs:
           docker push $IMAGE:latest
           docker tag $IMAGE:latest $IMAGE:v1.0.0
           docker push $IMAGE:v1.0.0
+      - name: "Eco CI: вимір build-and-push-image"
+        if: always()
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with:
+          task: get-measurement
+          label: build-and-push-image
+      - name: "Eco CI: підсумок"
+        if: always()
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with:
+          task: display-results
+          send-data: false
+          display-badge: false
 
   deploy:
     needs: build-and-push-image
@@ -63,6 +103,13 @@ jobs:
     steps:
       - name: Отримати код репозиторію
         uses: actions/checkout@v4
+      - name: "Eco CI: початок"
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with:
+          task: start-measurement
+          send-data: false
+          co2-calculation-method: constant
+          co2-grid-intensity-constant: 458
       - name: Встановити Terraform
         uses: hashicorp/setup-terraform@v3
         with:
@@ -96,7 +143,16 @@ jobs:
           IMAGE="ghcr.io/korniienkomaksym"
           IMAGE="$IMAGE/ci-lab-app:${{ github.sha }}"
           terraform destroy -auto-approve -var="image_name=$IMAGE"
-          
-          
-
-
+      - name: "Eco CI: вимір deploy"
+        if: always()
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with:
+          task: get-measurement
+          label: deploy
+      - name: "Eco CI: підсумок"
+        if: always()
+        uses: green-coding-solutions/eco-ci-energy-estimation@v5.3.0
+        with:
+          task: display-results
+          send-data: false
+          display-badge: false
