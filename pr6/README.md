@@ -39,7 +39,7 @@
 
 Зведена таблиця результатів із `results/summary.csv` (формули (3)–(9)):
 
-| рело (`source`) | Версія (`label`) | $n$ | $E_R$, Дж | $\pm$ CI 95%, Дж | $t_R$, с | $t_R$, с | $\overline{P}$, Вт | $O_R$, мг $\text{CO}_2\text{e}$ | $M_R$, мг $\text{CO}_2\text{e}$ | $\text{SCI}$, мг $\text{CO}_2\text{e}$ |
+| Джерело (`source`) | Версія (`label`) | $n$ | $E_R$, Дж | $\pm$ CI 95%, Дж | $t_R$, с | $\overline{P}$, Вт | $O_R$, мг $\text{CO}_2\text{e}$ | $M_R$, мг $\text{CO}_2\text{e}$ | $\text{SCI}$, мг $\text{CO}_2\text{e}$ |
 | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
 | `local · CodeCarbon` | `baseline` | 5 | 74,229 | 0,618 | 1,5460 | 48,01 | 5,1645 | 2,1509 | **7,3154** |
 | `local · CodeCarbon` | `optimized` | 5 | 1,834 | 0,015 | 0,0380 | 48,26 | 0,1276 | 0,0529 | **0,1805** |
